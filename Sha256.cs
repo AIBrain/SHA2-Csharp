@@ -23,8 +23,6 @@
     using System;
     using System.Collections.Generic;
     using System.Collections.ObjectModel;
-    using System.IO;
-    using System.Text;
     using Annotations;
     using NUnit.Framework;
 
@@ -42,86 +40,45 @@
 
         [UsedImplicitly]
         [Pure]
-        private static UInt32 ROTL( UInt32 x, byte n ) {
+        public static UInt32 ROTL( UInt32 x, byte n ) {
             Assert.True( n < 32 );
             return ( x << n ) | ( x >> ( 32 - n ) );
         }
 
         [Pure]
-        private static UInt32 ROTR( UInt32 x, byte n ) {
+        public static UInt32 ROTR( UInt32 x, byte n ) {
             Assert.True( n < 32 );
             return ( x >> n ) | ( x << ( 32 - n ) );
         }
 
         [Pure]
-        private static UInt32 Ch( UInt32 x, UInt32 y, UInt32 z ) {
+        public static UInt32 Ch( UInt32 x, UInt32 y, UInt32 z ) {
             return ( x & y ) ^ ( ( ~x ) & z );
         }
 
         [Pure]
-        private static UInt32 Maj( UInt32 x, UInt32 y, UInt32 z ) {
+        public static UInt32 Maj( UInt32 x, UInt32 y, UInt32 z ) {
             return ( x & y ) ^ ( x & z ) ^ ( y & z );
         }
 
         [Pure]
-        private static UInt32 Sigma0( UInt32 x ) {
+        public static UInt32 Sigma0( UInt32 x ) {
             return ROTR( x, 2 ) ^ ROTR( x, 13 ) ^ ROTR( x, 22 );
         }
 
         [Pure]
-        private static UInt32 Sigma1( UInt32 x ) {
+        public static UInt32 Sigma1( UInt32 x ) {
             return ROTR( x, 6 ) ^ ROTR( x, 11 ) ^ ROTR( x, 25 );
         }
 
         [Pure]
-        private static UInt32 sigma0( UInt32 x ) {
+        public static UInt32 sigma0( UInt32 x ) {
             return ROTR( x, 7 ) ^ ROTR( x, 18 ) ^ ( x >> 3 );
         }
 
         [Pure]
-        private static UInt32 sigma1( UInt32 x ) {
+        public static UInt32 sigma1( UInt32 x ) {
             return ROTR( x, 17 ) ^ ROTR( x, 19 ) ^ ( x >> 10 );
-        }
-
-        private void ProcessBlock( IList<uint> m ) {
-            Assert.True( m.Count == 16 );
-
-            // 1. Prepare the message schedule (W[t]):
-            var w = new UInt32[ 64 ];
-            for ( var t = 0; t < 16; ++t ) {
-                w[ t ] = m[ t ];
-            }
-
-            for ( var t = 16; t < 64; ++t ) {
-                w[ t ] = sigma1( w[ t - 2 ] ) + w[ t - 7 ] + sigma0( w[ t - 15 ] ) + w[ t - 16 ];
-            }
-
-            // 2. Initialize the eight working variables with the (i-1)-st hash value:
-            UInt32 a = this._h[ 0 ], b = this._h[ 1 ], c = this._h[ 2 ], d = this._h[ 3 ], e = this._h[ 4 ], f = this._h[ 5 ], g = this._h[ 6 ], h = this._h[ 7 ];
-
-            // 3. For t=0 to 63:
-            for ( var t = 0; t < 64; ++t ) {
-                var t1 = h + Sigma1( e ) + Ch( e, f, g ) + K[ t ] + w[ t ];
-                var t2 = Sigma0( a ) + Maj( a, b, c );
-                h = g;
-                g = f;
-                f = e;
-                e = d + t1;
-                d = c;
-                c = b;
-                b = a;
-                a = t1 + t2;
-            }
-
-            // 4. Compute the intermediate hash value H:
-            this._h[ 0 ] = a + this._h[ 0 ];
-            this._h[ 1 ] = b + this._h[ 1 ];
-            this._h[ 2 ] = c + this._h[ 2 ];
-            this._h[ 3 ] = d + this._h[ 3 ];
-            this._h[ 4 ] = e + this._h[ 4 ];
-            this._h[ 5 ] = f + this._h[ 5 ];
-            this._h[ 6 ] = g + this._h[ 6 ];
-            this._h[ 7 ] = h + this._h[ 7 ];
         }
 
         public void AddData( byte[] data, uint offset, uint len ) {
@@ -159,18 +116,64 @@
                 if ( this._pendingBlockOff != 64 ) {
                     continue;
                 }
-                ToUintArray( this._pendingBlock, this._uintBuffer );
-                this.ProcessBlock( this._uintBuffer );
+
+                #region ToUintArray
+                for ( uint i = 0, j = 0; i < this._uintBuffer.Length; ++i, j += 4 ) {
+                    this._uintBuffer[ i ] = ( ( UInt32 )this._pendingBlock[ j + 0 ] << 24 ) | ( ( UInt32 )this._pendingBlock[ j + 1 ] << 16 ) | ( ( UInt32 )this._pendingBlock[ j + 2 ] << 8 ) | this._pendingBlock[ j + 3 ];
+                }
+                #endregion ToUintArray
+
+                #region ProcessBlock
+                Assert.True( ( ( IList< uint > ) this._uintBuffer ).Count == 16 );
+
+                // 1. Prepare the message schedule (W[t]):
+                var w = new UInt32[ 64 ];
+                for ( var t = 0; t < 16; ++t ) {
+                    w[ t ] = ( ( IList< uint > ) this._uintBuffer )[ t ];
+                }
+
+                for ( var t = 16; t < 64; ++t ) {
+                    w[ t ] = sigma1( w[ t - 2 ] ) + w[ t - 7 ] + sigma0( w[ t - 15 ] ) + w[ t - 16 ];
+                }
+
+                // 2. Initialize the eight working variables with the (i-1)-st hash value:
+                UInt32 a = this._h[ 0 ], b = this._h[ 1 ], c = this._h[ 2 ], d = this._h[ 3 ], e = this._h[ 4 ], f = this._h[ 5 ], g = this._h[ 6 ], h = this._h[ 7 ];
+
+                // 3. For t=0 to 63:
+                for ( var t = 0; t < 64; ++t ) {
+                    var t1 = h + Sigma1( e ) + Ch( e, f, g ) + K[ t ] + w[ t ];
+                    var t2 = Sigma0( a ) + Maj( a, b, c );
+                    h = g;
+                    g = f;
+                    f = e;
+                    e = d + t1;
+                    d = c;
+                    c = b;
+                    b = a;
+                    a = t1 + t2;
+                }
+
+                // 4. Compute the intermediate hash value H:
+                this._h[ 0 ] = a + this._h[ 0 ];
+                this._h[ 1 ] = b + this._h[ 1 ];
+                this._h[ 2 ] = c + this._h[ 2 ];
+                this._h[ 3 ] = d + this._h[ 3 ];
+                this._h[ 4 ] = e + this._h[ 4 ];
+                this._h[ 5 ] = f + this._h[ 5 ];
+                this._h[ 6 ] = g + this._h[ 6 ];
+                this._h[ 7 ] = h + this._h[ 7 ];
+                #endregion ProcessBlock
+
                 this._pendingBlockOff = 0;
             }
         }
 
         public ReadOnlyCollection<byte> GetHash() {
-            return ToByteArray( this.GetHashUInt32() );
+            return this.GetHashUInt32().ToByteArray();
         }
 
         public byte[] GetHash256() {
-            return ToBytes( this.GetHashUInt32() );
+            return Util.ToBytes( this.GetHashUInt32() );
         }
 
         public ReadOnlyCollection<UInt32> GetHashUInt32() {
@@ -182,14 +185,14 @@
 
             this.AddData( new byte[] { 0x80 }, 0, 1 );
 
-            var available_space = 64 - this._pendingBlockOff;
+            var availableSpace = 64 - this._pendingBlockOff;
 
-            if ( available_space < 8 ) {
-                available_space += 64;
+            if ( availableSpace < 8 ) {
+                availableSpace += 64;
             }
 
             // 0-initialized
-            var padding = new byte[ available_space ];
+            var padding = new byte[ availableSpace ];
             // Insert lenght uint64
             for ( uint i = 1; i <= 8; ++i ) {
                 padding[ padding.Length - i ] = ( byte )sizeTemp;
@@ -203,71 +206,6 @@
             this._closed = true;
 
             return Array.AsReadOnly( this._h );
-        }
-
-        private static void ToUintArray( byte[] src, UInt32[] dest ) {
-            for ( uint i = 0, j = 0; i < dest.Length; ++i, j += 4 ) {
-                dest[ i ] = ( ( UInt32 )src[ j + 0 ] << 24 ) | ( ( UInt32 )src[ j + 1 ] << 16 ) | ( ( UInt32 )src[ j + 2 ] << 8 ) | src[ j + 3 ];
-            }
-        }
-
-        private static ReadOnlyCollection<byte> ToByteArray( ICollection<uint> src ) {
-            var dest = new byte[ src.Count * 4 ];
-            var pos = 0;
-
-            foreach ( var t in src ) {
-                dest[ pos++ ] = ( byte )( t >> 24 );
-                dest[ pos++ ] = ( byte )( t >> 16 );
-                dest[ pos++ ] = ( byte )( t >> 8 );
-                dest[ pos++ ] = ( byte )( t );
-            }
-
-            return Array.AsReadOnly( dest );
-        }
-
-        private static byte[] ToBytes( ICollection<uint> src ) {
-            var dest = new byte[ src.Count * sizeof( uint ) ];
-            var pos = 0;
-
-            foreach ( var t in src ) {
-                dest[ pos++ ] = ( byte )( t >> 24 );
-                dest[ pos++ ] = ( byte )( t >> 16 );
-                dest[ pos++ ] = ( byte )( t >> 8 );
-                dest[ pos++ ] = ( byte )( t );
-            }
-
-            return dest;
-        }
-
-        public static ReadOnlyCollection<byte> ComputeHasher( String data ) {
-            var sha = new Sha256();
-            var buf = Encoding.UTF8.GetBytes( data );
-            sha.AddData( buf, 0, ( uint )buf.Length );
-            return sha.GetHash();
-        }
-
-        public static byte[] ComputeHash( String data ) {
-            var sha = new Sha256();
-            var buf = Encoding.UTF8.GetBytes( data );
-            sha.AddData( buf, 0, ( uint )buf.Length );
-            return sha.GetHash256();
-        }
-
-        public static ReadOnlyCollection<byte> HashFile( Stream fs ) {
-            var sha = new Sha256();
-            var buf = new byte[ 8196 ];
-
-            uint bytes_read;
-            do {
-                bytes_read = ( uint )fs.Read( buf, 0, buf.Length );
-                if ( bytes_read == 0 ) {
-                    break;
-                }
-
-                sha.AddData( buf, 0, bytes_read );
-            } while ( bytes_read == 8196 );
-
-            return sha.GetHash();
         }
     }
 }
