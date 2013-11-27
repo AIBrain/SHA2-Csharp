@@ -29,7 +29,17 @@ namespace Sha2
         public static string ArrayToString( this ReadOnlyCollection<byte> arr)
         {
             var s = new StringBuilder(arr.Count * 2);
-            foreach ( byte t in arr ) {
+            foreach ( var t in arr ) {
+                s.AppendFormat("{0:x2}", t);
+            }
+
+            return s.ToString();
+        }
+        
+        public static string ArrayToString( this byte[] arr)
+        {
+            var s = new StringBuilder(arr.Length * 2);
+            foreach ( var t in arr ) {
                 s.AppendFormat("{0:x2}", t);
             }
 
