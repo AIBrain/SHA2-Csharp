@@ -30,7 +30,7 @@ namespace Sha2
         {
             var s = new StringBuilder(arr.Count * 2);
             foreach ( byte t in arr ) {
-                s.AppendFormat("{0:x}", t);
+                s.AppendFormat("{0:x2}", t);
             }
 
             return s.ToString();
