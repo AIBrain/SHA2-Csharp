@@ -1,5 +1,6 @@
 ﻿namespace Sha2Test {
     using System.Linq;
+    using System.Security.Cryptography;
     using NUnit.Framework;
     using Sha2;
 
@@ -39,6 +40,9 @@
 
             var test3 = "The quick brown fox jumps over the lazy dog.".ComputeHash().ArrayToString();
             Assert.True( test3.SequenceEqual( "ef537f25c895bfa782526529a9b63d97aa631564d5d789c2b765448c8635fb6c" ) );
+
+            var bob = new SHA256Managed();
+            bob.ComputeHash( "" );
         }
     }
 }

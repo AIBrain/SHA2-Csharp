@@ -1,11 +1,12 @@
 ﻿using System.Collections.ObjectModel;
 using System.Text;
 
-namespace Sha2
-{
+namespace Sha2 {
     using System;
     using System.Collections.Generic;
+    using System.Diagnostics;
     using System.IO;
+    using System.Threading;
 
     /*
      * Copyright (c) 2010 Yuri K. Schlesner
@@ -28,23 +29,20 @@ namespace Sha2
      * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
      * THE SOFTWARE.
      */
-    public static class Util
-    {
-        public static string ArrayToString( this ReadOnlyCollection< byte > arr)
-        {
-            var s = new StringBuilder(arr.Count * 2);
+    public static class Util {
+        public static string ArrayToString( this ReadOnlyCollection<byte> arr ) {
+            var s = new StringBuilder( arr.Count * 2 );
             foreach ( var t in arr ) {
-                s.AppendFormat("{0:x2}", t);
+                s.AppendFormat( "{0:x2}", t );
             }
 
             return s.ToString();
         }
-        
-        public static string ArrayToString( this byte[] arr)
-        {
-            var s = new StringBuilder(arr.Length * 2);
+
+        public static string ArrayToString( this byte[] arr ) {
+            var s = new StringBuilder( arr.Length * 2 );
             foreach ( var t in arr ) {
-                s.AppendFormat("{0:x2}", t);
+                s.AppendFormat( "{0:x2}", t );
             }
 
             return s.ToString();
@@ -107,6 +105,83 @@ namespace Sha2
             } while ( bytes_read == 8196 );
 
             return sha.GetHash();
+        }
+
+        public enum PerformantStatus {
+            Unknown = 0,
+            Same,
+            AIsFaster,
+            BIsFaster,
+        }
+
+        public static PerformantStatus WhichFunctionIsFaster<TTSource>( Func<TTSource> aFunc, Func<TTSource> bFunc ) {
+
+            var stopwatch = Stopwatch.StartNew();
+            Thread.Sleep( 0 );
+            stopwatch.Stop();
+            var baseLine = stopwatch.Elapsed.TotalMilliseconds;
+
+            stopwatch.Restart();
+            try {
+// ReSharper disable once UnusedVariable
+                var junk = aFunc();
+            }
+            finally {
+                stopwatch.Stop();
+            }
+
+            baseLine = ( baseLine + stopwatch.Elapsed.TotalMilliseconds ) / 2.0;
+
+            stopwatch.Restart();
+            try {
+                // ReSharper disable once UnusedVariable
+                var junk = bFunc();
+            }
+            finally {
+                stopwatch.Stop();
+            }
+
+            baseLine = ( baseLine + stopwatch.Elapsed.TotalMilliseconds ) / 2.0;
+
+            if ( baseLine < 1 ) { baseLine = 1; }
+
+            var until = DateTime.Now.AddMilliseconds( baseLine * 1000 );
+            var aCounter = 0L;
+            do {
+                try {
+                    // ReSharper disable once UnusedVariable
+                    var junk = aFunc();
+                }
+                finally {
+                    aCounter++;
+                }
+            } while ( DateTime.Now < until );
+
+            until = DateTime.Now.AddMilliseconds( baseLine * 1000 );
+            var bCounter = 0L;
+            do {
+                try {
+                    // ReSharper disable once UnusedVariable
+                    var junk = bFunc();
+                }
+                finally {
+                    bCounter++;
+                }
+            } while ( DateTime.Now < until );
+
+            if ( aCounter == bCounter ) {
+                return PerformantStatus.Same;
+            }
+
+            if ( aCounter > bCounter ) {
+                return PerformantStatus.AIsFaster;
+            }
+
+            if ( bCounter > aCounter ) {
+                return PerformantStatus.BIsFaster;
+            }
+
+            return PerformantStatus.Unknown;
         }
     }
 }
