@@ -145,7 +145,7 @@
                 this._pendingBlockOff += amountToCopy;
 
                 if ( this._pendingBlockOff == 64 ) {
-                    toUintArray( this._pendingBlock, this._uintBuffer );
+                    ToUintArray( this._pendingBlock, this._uintBuffer );
                     this.processBlock( this._uintBuffer );
                     this._pendingBlockOff = 0;
                 }
@@ -153,7 +153,7 @@
         }
 
         public ReadOnlyCollection< byte > GetHash() {
-            return toByteArray( this.GetHashUInt32() );
+            return ToByteArray( this.GetHashUInt32() );
         }
 
         public ReadOnlyCollection< UInt32 > GetHashUInt32() {
@@ -188,13 +188,13 @@
             return Array.AsReadOnly( this._h );
         }
 
-        private static void toUintArray( byte[] src, UInt32[] dest ) {
+        private static void ToUintArray( byte[] src, UInt32[] dest ) {
             for ( uint i = 0, j = 0; i < dest.Length; ++i, j += 4 ) {
                 dest[ i ] = ( ( UInt32 ) src[ j + 0 ] << 24 ) | ( ( UInt32 ) src[ j + 1 ] << 16 ) | ( ( UInt32 ) src[ j + 2 ] << 8 ) | src[ j + 3 ];
             }
         }
 
-        private static ReadOnlyCollection< byte > toByteArray( ICollection< uint > src ) {
+        private static ReadOnlyCollection< byte > ToByteArray( ICollection< uint > src ) {
             var dest = new byte[src.Count*4];
             var pos = 0;
 
